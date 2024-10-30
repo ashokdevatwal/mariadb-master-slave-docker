@@ -1,0 +1,55 @@
+version: '3.1'
+
+services:
+  master:
+    image: mariadb:latest
+    container_name: mariadb-master
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=replicated_db
+      - MYSQL_USER=replication_user
+      - MYSQL_PASSWORD=replication_password
+    volumes:
+      - ./master/my.cnf:/etc/mysql/my.cnf
+    command: --log-bin=mysql-bin --server-id=1 --binlog-do-db=replicated_db
+    ports:
+      - "3307:3306"  # exposes port 3306 from container as 3307 on host
+
+  phpmyadmin-master:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-master
+    environment:
+      - PMA_HOST=mariadb-master
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=root_password
+    ports:
+      - "8081:80"  # Access phpMyAdmin for the master at localhost:8081
+    depends_on:
+      - master
+
+  slave:
+    image: mariadb:latest
+    container_name: mariadb-slave
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+    volumes:
+      - ./slave/my.cnf:/etc/mysql/my.cnf
+    command: --server-id=2 --binlog-do-db=replicated_db
+    ports:
+      - "3308:3306"  # exposes port 3306 from container as 3308 on host
+    depends_on:
+      - master
+
+  phpmyadmin-slave:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-slave
+    environment:
+      - PMA_HOST=mariadb-slave
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=root_password
+    ports:
+      - "8082:80"  # Access phpMyAdmin for the slave at localhost:8082
+    depends_on:
+      - slave
